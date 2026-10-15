@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sistema de Ventas - Gestión de Proveedor</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+<nav class="navbar navbar-dark bg-dark">
+  <div class="container"><span class="navbar-brand mb-0">Sistema de Ventas - Gestión de Proveedor</span></div>
+</nav>
+<div class="container my-4">
+  <div id="mensajes"></div>
+
+  <!-- Búsqueda -->
+  <div class="card shadow-sm mb-4"><div class="card-body">
+    <div class="input-group">
+      <span class="input-group-text">Buscar por RUC o nombre:</span>
+      <input id="txtBuscar" class="form-control" type="text">
+      <button class="btn btn-primary" onclick="buscar()">Buscar</button>
+    </div>
+  </div></div>
+
+  <!-- Formulario -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-body">
+      <div class="row g-3"><div class="col-md-6"><label for="id_proveedor" class="form-label fw-semibold">ID Proveedor:</label><input id="id_proveedor" class="form-control bg-light" readonly></div><div class="col-md-6"><label for="ciudad" class="form-label fw-semibold">Ciudad:</label><input id="ciudad" type="text" class="form-control"></div><div class="col-md-6"><label for="nombre" class="form-label fw-semibold">Nombre:</label><input id="nombre" type="text" class="form-control"></div><div class="col-md-6"><label for="email" class="form-label fw-semibold">Email:</label><input id="email" type="email" class="form-control"></div><div class="col-md-6"><label for="ruc" class="form-label fw-semibold">RUC:</label><input id="ruc" type="text" class="form-control" maxlength="11"></div><div class="col-md-6"><label for="direccion" class="form-label fw-semibold">Dirección:</label><input id="direccion" type="text" class="form-control"></div><div class="col-md-6"><label for="telefono" class="form-label fw-semibold">Teléfono:</label><input id="telefono" type="text" class="form-control"></div><div class="col-md-6"><label for="representante" class="form-label fw-semibold">Representante:</label><input id="representante" type="text" class="form-control"></div><div class="col-md-6"><label for="pais" class="form-label fw-semibold">País:</label><select id="pais" class="form-select"><option value="">Seleccione...</option><option>Perú</option><option>Chile</option><option>Colombia</option></select></div></div>
+      <div class="mt-4 d-flex gap-2 flex-wrap">
+        <button class="btn btn-primary" onclick="registrar()">Registrar</button>
+        <button class="btn btn-primary" onclick="modificar()">Modificar</button>
+        <button class="btn btn-danger" onclick="eliminar()">Eliminar</button>
+        <button class="btn btn-secondary" onclick="limpiar()">Limpiar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabla de registros -->
+  <div class="card shadow-sm">
+    <div class="table-responsive">
+      <table class="table table-hover table-striped mb-0">
+        <thead class="table-dark"><tr><th>ID</th><th>Nombre</th><th>RUC</th><th>Teléfono</th><th>País</th><th>Ciudad</th><th>Representante</th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const CAMPOS = [{"k": "id_proveedor", "l": "ID Proveedor", "t": "auto", "r": false}, {"k": "ciudad", "l": "Ciudad", "t": "text", "r": true}, {"k": "nombre", "l": "Nombre", "t": "text", "r": true}, {"k": "email", "l": "Email", "t": "email", "r": true}, {"k": "ruc", "l": "RUC", "t": "text", "r": true, "p": "^[0-9]{11}$", "m": "El RUC debe tener 11 dígitos."}, {"k": "direccion", "l": "Dirección", "t": "text", "r": true}, {"k": "telefono", "l": "Teléfono", "t": "text", "r": true}, {"k": "representante", "l": "Representante", "t": "text", "r": true}, {"k": "pais", "l": "País", "t": "select", "r": true}];
+const COLUMNAS = [{"k": "id_proveedor", "l": "ID"}, {"k": "nombre", "l": "Nombre"}, {"k": "ruc", "l": "RUC"}, {"k": "telefono", "l": "Teléfono"}, {"k": "pais", "l": "País"}, {"k": "ciudad", "l": "Ciudad"}, {"k": "representante", "l": "Representante"}];
+const AUTO = "id_proveedor";
+let datos = [{"id_proveedor": 1, "nombre": "Distribuidora Andina SAC", "ruc": "20512345678", "telefono": "014567890", "pais": "Perú", "ciudad": "Lima", "representante": "Rosa Vargas", "email": "contacto@proveedor.com", "direccion": "Av. Industrial 456", "_id": 1}, {"id_proveedor": 2, "nombre": "Tecno Import EIRL", "ruc": "20698745213", "telefono": "013254789", "pais": "Perú", "ciudad": "Arequipa", "representante": "Jorge Salas", "email": "contacto@proveedor.com", "direccion": "Av. Industrial 456", "_id": 2}, {"id_proveedor": 3, "nombre": "Oficina Total SA", "ruc": "20457896321", "telefono": "016547891", "pais": "Chile", "ciudad": "Santiago", "representante": "Marta Rojas", "email": "contacto@proveedor.com", "direccion": "Av. Industrial 456", "_id": 3}];
+let seleccionado = null;
+let vista = datos;
+let siguiente = datos.reduce((m, d) => Math.max(m, d._id), 0) + 1;
+
+const $ = id => document.getElementById(id);
+const hoy = () => new Date().toISOString().slice(0, 10);
+const esc = t => String(t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function calcular(){}
+function validarExtra(d){ return ''; }
+
+function mensaje(texto, tipo) {
+  $('mensajes').innerHTML =
+    '<div class="alert alert-' + tipo + ' alert-dismissible fade show" role="alert">' + esc(texto) +
+    '<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>';
+}
+
+function valorInicial(c) {
+  if (c.t === 'auto') return 'Automático';
+  if (c.d === 'HOY') return hoy();
+  return c.d !== undefined ? c.d : '';
+}
+
+function pintarTabla(lista) {
+  vista = lista;
+  const tb = $('tbody');
+  if (lista.length === 0) {
+    tb.innerHTML = '<tr><td colspan="' + COLUMNAS.length + '" class="text-center text-muted">No se encontraron registros</td></tr>';
+    return;
+  }
+  tb.innerHTML = lista.map(d =>
+    '<tr style="cursor:pointer" class="' + (d._id === seleccionado ? 'table-primary' : '') + '" onclick="cargar(' + d._id + ')">' +
+    COLUMNAS.map(c => '<td>' + esc(d[c.k] === undefined ? '' : d[c.k]) + '</td>').join('') + '</tr>'
+  ).join('');
+}
+
+function limpiar() {
+  seleccionado = null;
+  CAMPOS.forEach(c => { $(c.k).value = valorInicial(c); });
+  $('txtBuscar').value = '';
+  calcular();
+  pintarTabla(datos);
+}
+
+function leerFormulario() {
+  const d = {};
+  CAMPOS.forEach(c => { if (c.t !== 'auto') d[c.k] = $(c.k).value.trim(); });
+  CAMPOS.filter(c => c.h).forEach(c => { d[c.k] = hoy(); });
+  return d;
+}
+
+function validar(d) {
+  for (const c of CAMPOS) {
+    if (c.t === 'auto' || !c.r) continue;
+    if (d[c.k] === '') return 'Complete el campo "' + c.l + '".';
+    if (c.p && !new RegExp(c.p).test(d[c.k])) return c.m;
+    if (c.t === 'number' && Number(d[c.k]) < 0) return 'El campo "' + c.l + '" no puede ser negativo.';
+  }
+  return validarExtra(d);
+}
+
+function registrar() {
+  const d = leerFormulario();
+  const error = validar(d);
+  if (error) { mensaje(error, 'danger'); return; }
+  d._id = siguiente++;
+  if (AUTO) d[AUTO] = d._id;
+  datos.push(d);
+  limpiar();
+  mensaje('Registro agregado correctamente.', 'success');
+}
+
+function modificar() {
+  if (seleccionado === null) { mensaje('Primero seleccione un registro de la tabla.', 'warning'); return; }
+  const d = leerFormulario();
+  const error = validar(d);
+  if (error) { mensaje(error, 'danger'); return; }
+  d._id = seleccionado;
+  if (AUTO) d[AUTO] = seleccionado;
+  datos = datos.map(x => x._id === seleccionado ? d : x);
+  limpiar();
+  mensaje('Registro modificado correctamente.', 'success');
+}
+
+function eliminar() {
+  if (seleccionado === null) { mensaje('Primero seleccione un registro de la tabla.', 'warning'); return; }
+  if (!confirm('¿Seguro que desea eliminar este registro?')) return;
+  datos = datos.filter(x => x._id !== seleccionado);
+  limpiar();
+  mensaje('Registro eliminado correctamente.', 'success');
+}
+
+function buscar() {
+  const t = $('txtBuscar').value.trim().toLowerCase();
+  const res = datos.filter(d => COLUMNAS.some(c => String(d[c.k] === undefined ? '' : d[c.k]).toLowerCase().includes(t)));
+  pintarTabla(res);
+  if (res.length === 0) mensaje('No se encontraron resultados.', 'info');
+}
+
+function cargar(id) {
+  const d = datos.find(x => x._id === id);
+  if (!d) return;
+  seleccionado = id;
+  CAMPOS.forEach(c => {
+    $(c.k).value = c.t === 'auto' ? d._id : (d[c.k] === undefined ? '' : d[c.k]);
+  });
+  calcular();
+  pintarTabla(vista);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  CAMPOS.forEach(c => {
+    $(c.k).addEventListener('input', calcular);
+    $(c.k).addEventListener('change', calcular);
+  });
+  $('txtBuscar').addEventListener('keydown', e => { if (e.key === 'Enter') buscar(); });
+  limpiar();
+});
+</script>
+</body>
+</html>
